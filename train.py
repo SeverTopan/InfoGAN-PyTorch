@@ -7,11 +7,14 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
 import random
+from pathlib import Path
 
 from models.mnist_model import Generator, Discriminator, DHead, QHead
 from dataloader import get_data
 from utils import *
 from config import params
+
+from mapping import get_mapping
 
 if(params['dataset'] == 'MNIST'):
     from models.mnist_model import Generator, Discriminator, DHead, QHead
@@ -43,7 +46,7 @@ dataloader = get_data(params['dataset'], params['batch_size'])
 if(params['dataset'] == 'MNIST'):
     params['num_z'] = 62
     params['num_dis_c'] = 1
-    params['dis_c_dim'] = 10
+    params['dis_c_dim'] = 9
     params['num_con_c'] = 2
 elif(params['dataset'] == 'SVHN'):
     params['num_z'] = 124
@@ -66,7 +69,7 @@ sample_batch = next(iter(dataloader))
 plt.figure(figsize=(10, 10))
 plt.axis("off")
 plt.imshow(np.transpose(vutils.make_grid(
-    sample_batch[0].to(device)[ : 100], nrow=10, padding=2, normalize=True).cpu(), (1, 2, 0)))
+    sample_batch[0].to(device)[ : 100], nrow=9, padding=2, normalize=True).cpu(), (1, 2, 0)))
 plt.savefig('Training Images {}'.format(params['dataset']))
 plt.close('all')
 
@@ -87,6 +90,15 @@ netQ = QHead().to(device)
 netQ.apply(weights_init)
 print(netQ)
 
+# Load previous data.
+if params['checkpoint'] is not None:
+    state_dict = torch.load(Path(params['checkpoint']))
+
+    netG.load_state_dict(state_dict['netG'])
+    discriminator.load_state_dict(state_dict['discriminator'])
+    netQ.load_state_dict(state_dict['netQ'])
+    netD.load_state_dict(state_dict['netD'])
+
 # Loss for discrimination between real and fake images.
 criterionD = nn.BCELoss()
 # Loss for discrete latent code.
@@ -99,20 +111,20 @@ optimD = optim.Adam([{'params': discriminator.parameters()}, {'params': netD.par
 optimG = optim.Adam([{'params': netG.parameters()}, {'params': netQ.parameters()}], lr=params['learning_rate'], betas=(params['beta1'], params['beta2']))
 
 # Fixed Noise
-z = torch.randn(100, params['num_z'], 1, 1, device=device)
+z = torch.randn(90, params['num_z'], 1, 1, device=device)
 fixed_noise = z
 if(params['num_dis_c'] != 0):
     idx = np.arange(params['dis_c_dim']).repeat(10)
-    dis_c = torch.zeros(100, params['num_dis_c'], params['dis_c_dim'], device=device)
+    dis_c = torch.zeros(90, params['num_dis_c'], params['dis_c_dim'], device=device)
     for i in range(params['num_dis_c']):
-        dis_c[torch.arange(0, 100), i, idx] = 1.0
+        dis_c[torch.arange(0, 90), i, idx] = 1.0
 
-    dis_c = dis_c.view(100, -1, 1, 1)
+    dis_c = dis_c.view(90, -1, 1, 1)
 
     fixed_noise = torch.cat((fixed_noise, dis_c), dim=1)
 
 if(params['num_con_c'] != 0):
-    con_c = torch.rand(100, params['num_con_c'], 1, 1, device=device) * 2 - 1
+    con_c = torch.rand(90, params['num_con_c'], 1, 1, device=device) * 2 - 1
     fixed_noise = torch.cat((fixed_noise, con_c), dim=1)
 
 real_label = 1
@@ -179,7 +191,7 @@ for epoch in range(params['num_epochs']):
         # Calculating loss for discrete latent code.
         dis_loss = 0
         for j in range(params['num_dis_c']):
-            dis_loss += criterionQ_dis(q_logits[:, j*10 : j*10 + 10], target[j])
+            dis_loss += criterionQ_dis(q_logits[:, j*9 : j*9 + 9], target[j])
 
         # Calculating loss for continuous latent code.
         con_loss = 0
@@ -210,7 +222,7 @@ for epoch in range(params['num_epochs']):
     # Generate image after each epoch to check performance of the generator. Used for creating animated gif later.
     with torch.no_grad():
         gen_data = netG(fixed_noise).detach().cpu()
-    img_list.append(vutils.make_grid(gen_data, nrow=10, padding=2, normalize=True))
+    img_list.append(vutils.make_grid(gen_data, nrow=9, padding=2, normalize=True))
 
     # Generate image to check performance of generator.
     if((epoch+1) == 1 or (epoch+1) == params['num_epochs']/2):
@@ -218,12 +230,15 @@ for epoch in range(params['num_epochs']):
             gen_data = netG(fixed_noise).detach().cpu()
         plt.figure(figsize=(10, 10))
         plt.axis("off")
-        plt.imshow(np.transpose(vutils.make_grid(gen_data, nrow=10, padding=2, normalize=True), (1,2,0)))
+        plt.imshow(np.transpose(vutils.make_grid(gen_data, nrow=9, padding=2, normalize=True), (1,2,0)))
         plt.savefig("Epoch_%d {}".format(params['dataset']) %(epoch+1))
         plt.close('all')
 
     # Save network weights.
     if (epoch+1) % params['save_epoch'] == 0:
+        values, indices, num_datapoints = get_mapping(lambda x: netQ(discriminator(x)), device, params)
+        print(f'Test correctness: {values.sum() / num_datapoints} -- mapping: {indices}')
+
         torch.save({
             'netG' : netG.state_dict(),
             'discriminator' : discriminator.state_dict(),
@@ -244,7 +259,7 @@ with torch.no_grad():
     gen_data = netG(fixed_noise).detach().cpu()
 plt.figure(figsize=(10, 10))
 plt.axis("off")
-plt.imshow(np.transpose(vutils.make_grid(gen_data, nrow=10, padding=2, normalize=True), (1,2,0)))
+plt.imshow(np.transpose(vutils.make_grid(gen_data, nrow=9, padding=2, normalize=True), (1,2,0)))
 plt.savefig("Epoch_%d_{}".format(params['dataset']) %(params['num_epochs']))
 
 # Save network weights.
@@ -273,6 +288,6 @@ plt.savefig("Loss Curve {}".format(params['dataset']))
 fig = plt.figure(figsize=(10,10))
 plt.axis("off")
 ims = [[plt.imshow(np.transpose(i,(1,2,0)), animated=True)] for i in img_list]
-anim = animation.ArtistAnimation(fig, ims, interval=1000, repeat_delay=1000, blit=True)
+anim = animation.ArtistAnimation(fig, ims, interval=15, repeat_delay=1000, blit=True)
 anim.save('infoGAN_{}.gif'.format(params['dataset']), dpi=80, writer='imagemagick')
 plt.show()

@@ -10,7 +10,7 @@ class Generator(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.tconv1 = nn.ConvTranspose2d(74, 1024, 1, 1, bias=False)
+        self.tconv1 = nn.ConvTranspose2d(73, 1024, 1, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(1024)
 
         self.tconv2 = nn.ConvTranspose2d(1024, 128, 7, 1, bias=False)
@@ -67,7 +67,7 @@ class QHead(nn.Module):
         self.conv1 = nn.Conv2d(1024, 128, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(128)
 
-        self.conv_disc = nn.Conv2d(128, 10, 1)
+        self.conv_disc = nn.Conv2d(128, 9, 1)
         self.conv_mu = nn.Conv2d(128, 2, 1)
         self.conv_var = nn.Conv2d(128, 2, 1)
 

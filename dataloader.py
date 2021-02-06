@@ -17,6 +17,10 @@ def get_data(dataset, batch_size):
         dataset = dsets.MNIST(root+'mnist/', train='train', 
                                 download=True, transform=transform)
 
+        idx = dataset.train_labels != 0
+        dataset.targets = dataset.targets[idx]
+        dataset.data = dataset.data[idx]
+
     # Get SVHN dataset.
     elif dataset == 'SVHN':
         transform = transforms.Compose([

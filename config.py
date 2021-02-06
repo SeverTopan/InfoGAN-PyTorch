@@ -5,5 +5,7 @@ params = {
     'learning_rate': 2e-4,# Learning rate.
     'beta1': 0.5,
     'beta2': 0.999,
-    'save_epoch' : 25,# After how many epochs to save checkpoints and generate test output.
-    'dataset' : 'MNIST'}# Dataset to use. Choose from {MNIST, SVHN, CelebA, FashionMNIST}. CASE MUST MATCH EXACTLY!!!!!
+    'save_epoch' : 10,# After how many epochs to save checkpoints and generate test output.
+    'dataset' : 'MNIST',# Dataset to use. Choose from {MNIST, SVHN, CelebA, FashionMNIST}. CASE MUST MATCH EXACTLY!!!!!
+    'checkpoint' : 'checkpoint-mnist-9cat-0-100/model_final_MNIST'
+}
